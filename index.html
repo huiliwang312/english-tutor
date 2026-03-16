@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>English Tutor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f0f1a;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    text-align: center;
+    padding: 20px;
+    border-bottom: 1px solid #2a2a3a;
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+    color: #a78bfa;
+  }
+
+  header p {
+    font-size: 0.85rem;
+    color: #888;
+    margin-top: 4px;
+  }
+
+  /* API key setup */
+  #setup {
+    max-width: 500px;
+    margin: 80px auto;
+    padding: 30px;
+    text-align: center;
+  }
+
+  #setup h2 {
+    color: #a78bfa;
+    margin-bottom: 12px;
+  }
+
+  #setup p {
+    color: #999;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  #setup input {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid #3a3a4a;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-size: 1rem;
+    margin-bottom: 12px;
+  }
+
+  #setup button {
+    padding: 12px 32px;
+    border-radius: 8px;
+    border: none;
+    background: #7c3aed;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  #setup button:hover { background: #6d28d9; }
+
+  /* Chat area */
+  #app { display: none; flex: 1; flex-direction: column; max-width: 700px; width: 100%; margin: 0 auto; }
+
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .msg {
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 16px;
+    line-height: 1.6;
+    font-size: 0.95rem;
+  }
+
+  .msg.user {
+    align-self: flex-end;
+    background: #2d1b69;
+    border-bottom-right-radius: 4px;
+  }
+
+  .msg.assistant {
+    align-self: flex-start;
+    background: #1e1e30;
+    border-bottom-left-radius: 4px;
+  }
+
+  .msg .label {
+    font-size: 0.75rem;
+    color: #888;
+    margin-bottom: 4px;
+  }
+
+  .msg .original {
+    color: #999;
+    font-style: italic;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+  }
+
+  .better {
+    background: #1a2e1a;
+    border-left: 3px solid #4ade80;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+    font-size: 0.88rem;
+  }
+
+  .better strong { color: #4ade80; }
+
+  .translation {
+    background: #0b2d3b;
+    border-left: 3px solid #38bdf8;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 8px 0;
+    font-size: 0.88rem;
+  }
+
+  .translation strong { color: #38bdf8; }
+
+  .reply { margin-top: 6px; }
+
+  /* Controls */
+  #controls {
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    border-top: 1px solid #2a2a3a;
+  }
+
+  #talkBtn {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid #7c3aed;
+    background: #1a1a2e;
+    color: #a78bfa;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #talkBtn:hover { background: #2d1b69; }
+
+  #talkBtn.listening {
+    background: #7c3aed;
+    color: white;
+    animation: pulse 1.5s infinite;
+    border-color: #a78bfa;
+  }
+
+  #talkBtn.thinking {
+    background: #1e1e30;
+    border-color: #f59e0b;
+    color: #f59e0b;
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4); }
+    50% { box-shadow: 0 0 0 12px rgba(124, 58, 237, 0); }
+  }
+
+  #stopBtn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid #555;
+    background: transparent;
+    color: #999;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+
+  #stopBtn:hover { border-color: #e74c3c; color: #e74c3c; }
+
+  #status {
+    font-size: 0.8rem;
+    color: #666;
+    text-align: center;
+    min-height: 1.2em;
+  }
+
+  .live-transcript {
+    text-align: center;
+    color: #a78bfa;
+    font-style: italic;
+    padding: 8px;
+    font-size: 0.9rem;
+  }
+
+  /* Progress button in header */
+  #progressBtn {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid #3a3a4a;
+    background: transparent;
+    color: #a78bfa;
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+  #progressBtn:hover { background: #2d1b69; }
+
+  /* Progress dashboard */
+  #progress {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    max-width: 700px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  #progress h2 {
+    color: #a78bfa;
+    margin-bottom: 16px;
+    font-size: 1.2rem;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: #1e1e30;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .stat-card .number {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #a78bfa;
+  }
+
+  .stat-card .label {
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 4px;
+  }
+
+  .day-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #1e1e30;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+  }
+
+  .day-row .date { color: #ccc; }
+  .day-row .day-stats { color: #888; }
+  .day-row .day-stats span { margin-left: 12px; }
+  .correction-rate-good { color: #4ade80; }
+  .correction-rate-ok { color: #f59e0b; }
+  .correction-rate-high { color: #ef4444; }
+
+  .section-title {
+    color: #ccc;
+    font-size: 0.9rem;
+    margin: 20px 0 10px;
+    font-weight: 600;
+  }
+
+  .correction-item {
+    background: #1e1e30;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+  }
+
+  .correction-item .orig {
+    color: #ef4444;
+    text-decoration: line-through;
+    margin-bottom: 4px;
+  }
+
+  .correction-item .fixed {
+    color: #4ade80;
+  }
+
+  .correction-item .corr-date {
+    color: #666;
+    font-size: 0.75rem;
+    margin-top: 4px;
+  }
+
+  #analyzeBtn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #7c3aed;
+    background: #2d1b69;
+    color: #a78bfa;
+    font-size: 0.9rem;
+    cursor: pointer;
+    margin-top: 16px;
+  }
+  #analyzeBtn:hover { background: #7c3aed; color: white; }
+  #analyzeBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .analysis-result {
+    background: #1a2e1a;
+    border-left: 3px solid #4ade80;
+    padding: 14px;
+    border-radius: 8px;
+    margin-top: 12px;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+
+<!-- Setup screen -->
+<div id="setup">
+  <h2>English Tutor</h2>
+  <p>
+    Speak in English (or mix in Chinese when you get stuck).
+    I'll correct your English, translate the Chinese parts, and chat back!
+  </p>
+  <p style="font-size:0.8rem;">
+    Enter your Claude API key to get started.<br>
+    Get one at <a href="https://console.anthropic.com" style="color:#a78bfa">console.anthropic.com</a>
+  </p>
+  <input type="password" id="apiKeyInput" placeholder="sk-ant-..." />
+  <br>
+  <button onclick="startApp()">Start</button>
+</div>
+
+<!-- Main app -->
+<div id="app">
+  <header style="position:relative">
+    <h1>English Tutor</h1>
+    <p>Tap the button and speak in English or Chinese</p>
+    <button id="progressBtn" onclick="toggleProgress()">Progress</button>
+  </header>
+
+  <div id="chat"></div>
+
+  <div id="progress">
+    <h2>Your Progress</h2>
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="section-title">Daily History</div>
+    <div id="dailyHistory"></div>
+    <div class="section-title">Recent Corrections</div>
+    <div id="correctionsList"></div>
+    <button id="analyzeBtn" onclick="analyzeProgress()">Analyze My Progress</button>
+    <div id="analysisResult"></div>
+  </div>
+
+  <div id="controls">
+    <button id="stopBtn" onclick="stopSpeaking()">Stop</button>
+    <div style="text-align:center">
+      <button id="talkBtn" onclick="toggleListening()">TALK</button>
+      <div id="status"></div>
+    </div>
+    <div style="width:60px"></div> <!-- spacer for symmetry -->
+  </div>
+</div>
+
+<script>
+  let apiKey = '';
+  let conversationHistory = [];
+  let recognition = null;
+  let isListening = false;
+  let isSpeaking = false;
+
+  const SYSTEM_PROMPT = `You are a friendly English conversation partner helping a Chinese speaker improve their English. The user will speak to you — their speech is transcribed, so expect imperfect text.
+
+Your response must ALWAYS be valid JSON with exactly these three fields:
+{
+  "better_version": "If the user's English sounded unnatural or had grammar issues, rewrite their ENTIRE message as a native speaker would naturally say it. Keep their meaning, just make it sound natural. This helps them hear the right way to say it. If their English was already natural, set this to null. Do NOT explain the changes — just give the better version.",
+  "translation": "If the user included any Chinese (中文) words or sentences, translate those parts to English here. If no Chinese was used, set this to null.",
+  "reply": "Your conversational reply. Keep it natural, friendly, and not too long. Ask follow-up questions to keep the conversation going. Speak at a level appropriate for an intermediate English learner."
+}
+
+Important rules:
+- ONLY output the JSON object, nothing else
+- For better_version: just rewrite their sentence naturally, no explanations. E.g. if they said "I go to store yesterday" → "I went to the store yesterday". Short and clean.
+- Be encouraging and conversational
+- Keep replies interesting — ask about their day, interests, opinions, etc.
+- If the user's meaning is unclear due to transcription errors, make your best guess and ask for clarification`;
+
+  function startApp() {
+    const key = document.getElementById('apiKeyInput').value.trim();
+    if (!key) return;
+    apiKey = key;
+    localStorage.setItem('english_tutor_api_key', key);
+    document.getElementById('setup').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    setStatus('Tap TALK to begin');
+
+    // Add a welcome message
+    addAssistantMessage(null, null, "Hi! I'm your English tutor. Tap the TALK button and tell me about your day, or anything you'd like to chat about. Feel free to mix in Chinese if you get stuck on a word!");
+  }
+
+  // Check for saved API key
+  window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('english_tutor_api_key');
+    if (saved) {
+      document.getElementById('apiKeyInput').value = saved;
+    }
+    initSpeechRecognition();
+  });
+
+  let finalTranscript = '';
+  let interimTranscript = '';
+
+  function initSpeechRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setStatus('Speech recognition not supported in this browser. Use Chrome.');
+      return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event) => {
+      interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const t = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += t + ' ';
+        } else {
+          interimTranscript = t;
+        }
+      }
+      showLiveTranscript(finalTranscript + interimTranscript);
+    };
+
+    recognition.onerror = (event) => {
+      if (event.error === 'no-speech') {
+        setStatus('No speech detected. Try again.');
+      } else if (event.error !== 'aborted') {
+        setStatus('Error: ' + event.error);
+      }
+      stopListening();
+    };
+
+    recognition.onend = () => {
+      if (isListening) {
+        // Browser auto-stopped — restart to keep listening
+        try { recognition.start(); } catch(e) {}
+      }
+    };
+  }
+
+  function toggleListening() {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  }
+
+  function startListening() {
+    if (!recognition) {
+      setStatus('Speech recognition not available');
+      return;
+    }
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      isSpeaking = false;
+    }
+
+    isListening = true;
+    finalTranscript = '';
+    recognition.lang = 'en-US';
+    try {
+      recognition.start();
+    } catch(e) {
+      // Already started
+    }
+    updateTalkButton();
+    setStatus('Listening... tap TALK when done');
+  }
+
+  function stopListening() {
+    if (!recognition) return;
+    isListening = false;
+    try { recognition.stop(); } catch(e) {}
+
+    // Grab both final and interim transcript (interim may not have been finalized yet)
+    const text = (finalTranscript + interimTranscript).trim();
+    finalTranscript = '';
+    interimTranscript = '';
+    removeLiveTranscript();
+    if (text) {
+      processUserSpeech(text);
+    } else {
+      setStatus('No speech captured. Try again.');
+    }
+    updateTalkButton();
+  }
+
+  function updateTalkButton() {
+    const btn = document.getElementById('talkBtn');
+    btn.classList.remove('listening', 'thinking');
+    if (isListening) {
+      btn.classList.add('listening');
+      btn.textContent = 'DONE';
+    } else {
+      btn.textContent = 'TALK';
+    }
+  }
+
+  function setStatus(text) {
+    document.getElementById('status').textContent = text;
+  }
+
+  function showLiveTranscript(text) {
+    let el = document.getElementById('liveTranscript');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'liveTranscript';
+      el.className = 'live-transcript';
+      document.getElementById('chat').appendChild(el);
+    }
+    el.textContent = text;
+    el.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function removeLiveTranscript() {
+    const el = document.getElementById('liveTranscript');
+    if (el) el.remove();
+  }
+
+  function addUserMessage(text) {
+    const chat = document.getElementById('chat');
+    const div = document.createElement('div');
+    div.className = 'msg user';
+    div.innerHTML = `<div class="label">You said:</div><div>${escapeHtml(text)}</div>`;
+    chat.appendChild(div);
+    div.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function addAssistantMessage(betterVersion, translation, reply) {
+    const chat = document.getElementById('chat');
+    const div = document.createElement('div');
+    div.className = 'msg assistant';
+
+    let html = '<div class="label">Tutor:</div>';
+
+    if (betterVersion) {
+      html += `<div class="better"><strong>A more natural way to say it:</strong><br>"${escapeHtml(betterVersion)}"</div>`;
+    }
+
+    if (translation) {
+      html += `<div class="translation"><strong>Translation:</strong><br>${escapeHtml(translation)}</div>`;
+    }
+
+    html += `<div class="reply">${escapeHtml(reply)}</div>`;
+
+    div.innerHTML = html;
+    chat.appendChild(div);
+    div.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML.replace(/\n/g, '<br>');
+  }
+
+  async function processUserSpeech(text) {
+    addUserMessage(text);
+
+    const btn = document.getElementById('talkBtn');
+    btn.classList.add('thinking');
+    btn.textContent = '...';
+    setStatus('Thinking...');
+
+    conversationHistory.push({ role: 'user', content: text });
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1024,
+          system: SYSTEM_PROMPT,
+          messages: conversationHistory.slice(-20) // keep last 20 messages for context
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`API error ${response.status}: ${err}`);
+      }
+
+      const data = await response.json();
+      const raw = data.content[0].text;
+
+      let parsed;
+      try {
+        // Try to extract JSON from the response
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+      } catch(e) {
+        // If JSON parsing fails, treat as plain reply
+        parsed = { better_version: null, translation: null, reply: raw };
+      }
+
+      conversationHistory.push({ role: 'assistant', content: raw });
+
+      // Track progress
+      trackMessage(!!parsed.better_version, !!parsed.translation, text, parsed.better_version);
+
+      addAssistantMessage(parsed.better_version, parsed.translation, parsed.reply);
+
+      // Speak better version first, then translation, then reply
+      const speakParts = [];
+      if (parsed.better_version) {
+        speakParts.push("A more natural way to say that: " + parsed.better_version);
+      }
+      if (parsed.translation) {
+        speakParts.push("For the Chinese part: " + parsed.translation);
+      }
+      speakParts.push(parsed.reply);
+      speakSequence(speakParts);
+
+    } catch (err) {
+      setStatus('Error: ' + err.message);
+      console.error(err);
+      addAssistantMessage(null, null, 'Error: ' + err.message);
+      btn.classList.remove('thinking');
+      btn.textContent = 'TALK';
+    }
+  }
+
+  function speakSequence(parts, index = 0) {
+    if (!window.speechSynthesis) return;
+
+    const btn = document.getElementById('talkBtn');
+    btn.classList.remove('thinking');
+    btn.textContent = 'TALK';
+
+    if (index >= parts.length) {
+      isSpeaking = false;
+      setStatus('Tap TALK to continue');
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(parts[index]);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.85; // Slightly slower for learners
+
+    isSpeaking = true;
+    const label = index < parts.length - 1 ? 'Correcting...' : 'Replying...';
+    setStatus(label);
+
+    utterance.onend = () => {
+      speakSequence(parts, index + 1);
+    };
+
+    utterance.onerror = () => {
+      speakSequence(parts, index + 1);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function stopSpeaking() {
+    window.speechSynthesis.cancel();
+    isSpeaking = false;
+    setStatus('Stopped. Tap TALK to continue');
+  }
+
+  // ─── Progress Tracking ───────────────────────────────────
+
+  function getProgress() {
+    try {
+      return JSON.parse(localStorage.getItem('english_tutor_progress')) || { daily: {}, corrections: [] };
+    } catch(e) {
+      return { daily: {}, corrections: [] };
+    }
+  }
+
+  function saveProgress(progress) {
+    localStorage.setItem('english_tutor_progress', JSON.stringify(progress));
+  }
+
+  function todayKey() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function trackMessage(hadCorrection, hadTranslation, original, betterVersion) {
+    const progress = getProgress();
+    const day = todayKey();
+
+    if (!progress.daily[day]) {
+      progress.daily[day] = { messages: 0, corrections: 0, translations: 0 };
+    }
+    progress.daily[day].messages++;
+    if (hadCorrection) progress.daily[day].corrections++;
+    if (hadTranslation) progress.daily[day].translations++;
+
+    if (hadCorrection && original && betterVersion) {
+      progress.corrections.push({
+        date: day,
+        original: original,
+        better: betterVersion
+      });
+      // Keep last 200 corrections
+      if (progress.corrections.length > 200) {
+        progress.corrections = progress.corrections.slice(-200);
+      }
+    }
+
+    saveProgress(progress);
+  }
+
+  let showingProgress = false;
+
+  function toggleProgress() {
+    showingProgress = !showingProgress;
+    const chat = document.getElementById('chat');
+    const controls = document.getElementById('controls');
+    const prog = document.getElementById('progress');
+    const btn = document.getElementById('progressBtn');
+
+    if (showingProgress) {
+      chat.style.display = 'none';
+      controls.style.display = 'none';
+      prog.style.display = 'block';
+      btn.textContent = 'Back to Chat';
+      renderProgress();
+    } else {
+      chat.style.display = 'flex';
+      controls.style.display = 'flex';
+      prog.style.display = 'none';
+      btn.textContent = 'Progress';
+    }
+  }
+
+  function renderProgress() {
+    const progress = getProgress();
+    const days = Object.keys(progress.daily).sort().reverse();
+
+    // Overall stats
+    let totalMessages = 0, totalCorrections = 0, totalDays = days.length;
+    days.forEach(d => {
+      totalMessages += progress.daily[d].messages;
+      totalCorrections += progress.daily[d].corrections;
+    });
+
+    const correctionRate = totalMessages > 0 ? Math.round((totalCorrections / totalMessages) * 100) : 0;
+    let rateClass = 'correction-rate-good';
+    if (correctionRate > 60) rateClass = 'correction-rate-high';
+    else if (correctionRate > 30) rateClass = 'correction-rate-ok';
+
+    document.getElementById('statsGrid').innerHTML = `
+      <div class="stat-card"><div class="number">${totalDays}</div><div class="label">Days Practiced</div></div>
+      <div class="stat-card"><div class="number">${totalMessages}</div><div class="label">Messages Sent</div></div>
+      <div class="stat-card"><div class="number ${rateClass}">${correctionRate}%</div><div class="label">Correction Rate</div></div>
+    `;
+
+    // Daily history
+    let dailyHtml = '';
+    if (days.length === 0) {
+      dailyHtml = '<div style="color:#666;font-size:0.85rem">No sessions yet. Start chatting to track your progress!</div>';
+    }
+    days.slice(0, 30).forEach(day => {
+      const s = progress.daily[day];
+      const rate = s.messages > 0 ? Math.round((s.corrections / s.messages) * 100) : 0;
+      let rc = 'correction-rate-good';
+      if (rate > 60) rc = 'correction-rate-high';
+      else if (rate > 30) rc = 'correction-rate-ok';
+      dailyHtml += `<div class="day-row">
+        <span class="date">${day}</span>
+        <span class="day-stats">
+          <span>${s.messages} msgs</span>
+          <span class="${rc}">${rate}% corrected</span>
+          <span>${s.translations} translations</span>
+        </span>
+      </div>`;
+    });
+    document.getElementById('dailyHistory').innerHTML = dailyHtml;
+
+    // Recent corrections
+    let corrHtml = '';
+    const recent = progress.corrections.slice(-20).reverse();
+    if (recent.length === 0) {
+      corrHtml = '<div style="color:#666;font-size:0.85rem">No corrections yet.</div>';
+    }
+    recent.forEach(c => {
+      corrHtml += `<div class="correction-item">
+        <div class="orig">${escapeHtml(c.original)}</div>
+        <div class="fixed">${escapeHtml(c.better)}</div>
+        <div class="corr-date">${c.date}</div>
+      </div>`;
+    });
+    document.getElementById('correctionsList').innerHTML = corrHtml;
+
+    // Clear previous analysis
+    document.getElementById('analysisResult').innerHTML = '';
+  }
+
+  async function analyzeProgress() {
+    const progress = getProgress();
+    const days = Object.keys(progress.daily).sort();
+    if (days.length === 0) {
+      document.getElementById('analysisResult').innerHTML =
+        '<div class="analysis-result">No data yet! Start chatting first, then come back to see your analysis.</div>';
+      return;
+    }
+
+    const btn = document.getElementById('analyzeBtn');
+    btn.disabled = true;
+    btn.textContent = 'Analyzing...';
+
+    // Build a summary for Claude
+    let summary = 'Here is my English learning progress data:\n\n';
+    summary += 'DAILY STATS:\n';
+    days.forEach(d => {
+      const s = progress.daily[d];
+      summary += `${d}: ${s.messages} messages, ${s.corrections} corrections, ${s.translations} translations\n`;
+    });
+
+    const recentCorr = progress.corrections.slice(-30);
+    if (recentCorr.length > 0) {
+      summary += '\nRECENT CORRECTIONS (what I said → better version):\n';
+      recentCorr.forEach(c => {
+        summary += `- "${c.original}" → "${c.better}"\n`;
+      });
+    }
+
+    summary += '\nPlease analyze my English learning progress. Tell me:\n1. What patterns do you see in my mistakes?\n2. What areas should I focus on improving?\n3. Am I making progress over time?\n4. Any specific tips based on my common errors?\n\nRespond in a mix of English and simple Chinese where helpful (since I am a Chinese speaker learning English). Keep it encouraging but honest.';
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1024,
+          system: 'You are an English learning coach analyzing a Chinese student\'s progress data. Be specific, encouraging, and practical. Use simple English with occasional Chinese explanations for key points.',
+          messages: [{ role: 'user', content: summary }]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error ${response.status}`);
+      }
+
+      const data = await response.json();
+      const text = data.content[0].text;
+      document.getElementById('analysisResult').innerHTML =
+        `<div class="analysis-result">${escapeHtml(text)}</div>`;
+    } catch(err) {
+      document.getElementById('analysisResult').innerHTML =
+        `<div class="analysis-result" style="border-color:#ef4444">Error: ${escapeHtml(err.message)}</div>`;
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Analyze My Progress';
+  }
+</script>
+</body>
+</html>
