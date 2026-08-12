@@ -660,7 +660,7 @@ Important rules:
           'anthropic-dangerous-direct-browser-access': 'true'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5-20250929',
           max_tokens: 1024,
           system: SYSTEM_PROMPT,
           messages: conversationHistory.slice(-20) // keep last 20 messages for context
@@ -950,7 +950,7 @@ Important rules:
           'anthropic-dangerous-direct-browser-access': 'true'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5-20250929',
           max_tokens: 1024,
           system: 'You are an English learning coach analyzing a Chinese student\'s progress data. Be specific, encouraging, and practical. Use simple English with occasional Chinese explanations for key points.',
           messages: [{ role: 'user', content: summary }]
