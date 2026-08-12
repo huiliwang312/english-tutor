@@ -204,6 +204,20 @@
 
   #stopBtn:hover { border-color: #e74c3c; color: #e74c3c; }
 
+  #langBtn {
+    width: 60px;
+    padding: 8px 0;
+    border-radius: 8px;
+    border: 1px solid #3a3a4a;
+    background: transparent;
+    color: #a78bfa;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  #langBtn:hover { background: #2d1b69; }
+  #langBtn.zh { border-color: #38bdf8; color: #38bdf8; }
+
   #status {
     font-size: 0.8rem;
     color: #666;
@@ -397,7 +411,7 @@
       <button id="talkBtn" onclick="toggleListening()">TALK</button>
       <div id="status"></div>
     </div>
-    <div style="width:60px"></div> <!-- spacer for symmetry -->
+    <button id="langBtn" onclick="toggleLang()" title="Switch the language you speak in">EN</button>
   </div>
 </div>
 
@@ -407,6 +421,7 @@
   let recognition = null;
   let isListening = false;
   let isSpeaking = false;
+  let speechLang = 'en-US'; // language you speak in; toggle to 'zh-CN' for Chinese
 
   const SYSTEM_PROMPT = `You are a friendly English conversation partner helping a Chinese speaker improve their English. The user will speak to you — their speech is transcribed, so expect imperfect text.
 
@@ -420,6 +435,7 @@ Your response must ALWAYS be valid JSON with exactly these three fields:
 Important rules:
 - ONLY output the JSON object, nothing else
 - For better_version: just rewrite their sentence naturally, no explanations. E.g. if they said "I go to store yesterday" → "I went to the store yesterday". Short and clean.
+- If the WHOLE message is in Chinese (the user switched to speaking Chinese), put the natural English way to say it in "better_version" and the meaning in "translation", then reply in English so they learn how to express it.
 - Be encouraging and conversational
 - Keep replies interesting — ask about their day, interests, opinions, etc.
 - If the user's meaning is unclear due to transcription errors, make your best guess and ask for clarification`;
@@ -491,6 +507,22 @@ Important rules:
     };
   }
 
+  function toggleLang() {
+    // Don't switch mid-utterance
+    if (isListening) stopListening();
+    speechLang = (speechLang === 'en-US') ? 'zh-CN' : 'en-US';
+    const btn = document.getElementById('langBtn');
+    if (speechLang === 'zh-CN') {
+      btn.textContent = '中文';
+      btn.classList.add('zh');
+      setStatus('Now speaking Chinese — the tutor will translate it to English');
+    } else {
+      btn.textContent = 'EN';
+      btn.classList.remove('zh');
+      setStatus('Now speaking English');
+    }
+  }
+
   function toggleListening() {
     if (isListening) {
       stopListening();
@@ -511,7 +543,7 @@ Important rules:
 
     isListening = true;
     finalTranscript = '';
-    recognition.lang = 'en-US';
+    recognition.lang = speechLang;
     try {
       recognition.start();
     } catch(e) {
@@ -680,34 +712,63 @@ Important rules:
     }
   }
 
-  function speakSequence(parts, index = 0) {
+  // Split a string into consecutive runs of Chinese vs. non-Chinese text
+  // so each run can be spoken with the right voice.
+  function splitByScript(text) {
+    const segments = [];
+    const re = /[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]+/g; // CJK + fullwidth punctuation
+    let last = 0, m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) {
+        const chunk = text.slice(last, m.index).trim();
+        if (chunk) segments.push({ text: chunk, lang: 'en-US' });
+      }
+      segments.push({ text: m[0].trim(), lang: 'zh-CN' });
+      last = re.lastIndex;
+    }
+    if (last < text.length) {
+      const chunk = text.slice(last).trim();
+      if (chunk) segments.push({ text: chunk, lang: 'en-US' });
+    }
+    return segments.length ? segments : [{ text: text, lang: 'en-US' }];
+  }
+
+  function speakSequence(parts) {
     if (!window.speechSynthesis) return;
 
     const btn = document.getElementById('talkBtn');
     btn.classList.remove('thinking');
     btn.textContent = 'TALK';
 
-    if (index >= parts.length) {
+    // Expand each part into script-aware segments; last part is the reply.
+    const segments = [];
+    parts.forEach((p, i) => {
+      const isReply = (i === parts.length - 1);
+      splitByScript(p).forEach(seg => segments.push({ ...seg, isReply }));
+    });
+
+    speakSegments(segments, 0);
+  }
+
+  function speakSegments(segments, index) {
+    const btn = document.getElementById('talkBtn');
+
+    if (index >= segments.length) {
       isSpeaking = false;
       setStatus('Tap TALK to continue');
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(parts[index]);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.85; // Slightly slower for learners
+    const seg = segments[index];
+    const utterance = new SpeechSynthesisUtterance(seg.text);
+    utterance.lang = seg.lang;
+    utterance.rate = seg.lang === 'zh-CN' ? 0.95 : 0.85; // slower English for learners
 
     isSpeaking = true;
-    const label = index < parts.length - 1 ? 'Correcting...' : 'Replying...';
-    setStatus(label);
+    setStatus(seg.isReply ? 'Replying...' : 'Correcting...');
 
-    utterance.onend = () => {
-      speakSequence(parts, index + 1);
-    };
-
-    utterance.onerror = () => {
-      speakSequence(parts, index + 1);
-    };
+    utterance.onend = () => speakSegments(segments, index + 1);
+    utterance.onerror = () => speakSegments(segments, index + 1);
 
     window.speechSynthesis.speak(utterance);
   }
